@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>facedetector - detecting/tracking faces</title>
+</head>
+<body>
+<video id="video" autoplay
+       style="position:absolute;left:0px;top:0px;width: 1280px; height: 960px; border: 1px solid black;"></video>
+<canvas id="canvas" style="position:absolute;left:0px;top:0px"></canvas>
+
+<script src="js/FaceDetector.js"></script>
+<script src="js/WebcamManager.js"></script>
+<script>
+
+    var camStreamWidth = 640;
+    var camStreamHeight = 480;
+
+    var VIEW_WIDTH = 1280;
+    var VIEW_HEIGHT = 960;
+    var video = document.getElementById("video");
+    var canvas = document.getElementById("canvas");
+
+    canvas.width = VIEW_WIDTH;
+    canvas.height = VIEW_HEIGHT;
+
+    var webcamParams = {
+        video: {
+            mandatory: {
+                maxWidth: camStreamWidth,
+                maxHeight: camStreamHeight,
+                minWidth: camStreamWidth,
+                minHeight: camStreamHeight
+            }
+        }
+    };
+    var webcamMgr = new WebCamManager(
+        {
+            webcamParams: webcamParams, //Set params for web camera
+            testVideoMode: false,//true:force use example video for test false:use web camera
+            videoTag: video
+        }
+    );
+
+    var faceDetector = new FaceDetector(
+        {
+            video: webcamMgr.getVideoTag(),
+            flipLeftRight: false,
+            flipUpsideDown: false
+        }
+    );
+
+    webcamMgr.setOnGetUserMediaCallback(function () {
+        //getUserMediaでvideoストリームが取得できたら
+
+        //顔検出開始
+        faceDetector.startDetecting();
+
+    });
+
+    faceDetector.setOnFaceAddedCallback(function (addedFaces, detectedFaces) {
+        for (var i = 0; i < addedFaces.length; i++) {
+            console.log("[facedetector] New face detected id=" + addedFaces[i].faceId + " index=" + addedFaces[i].faceIndex);
+        }
+    });
+
+    faceDetector.setOnFaceLostCallback(function (lostFaces, detectedFaces) {
+
+        var ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+        for (var i = 0; i < lostFaces.length; i++) {
+            console.log("[facedetector] Face removed id=" + lostFaces[i].faceId + " index=" + lostFaces[i].faceIndex);
+        }
+
+    });
+
+    faceDetector.setOnFaceUpdatedCallback(function (detectedFaces) {
+
+        var ctx = canvas.getContext("2d");
+        // ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+        ctx.clearRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+
+
+        for (var i = 0; i < detectedFaces.length; i++) {
+
+            var face = detectedFaces[i];
+
+            ctx.filter = 'blur(20px)';
+
+            let x = face.x * VIEW_WIDTH - 25;
+            let y = face.y * VIEW_HEIGHT + 10 - 25 - 50;
+            let w = (face.width * VIEW_WIDTH) + 50 ;
+            let h = (face.height * VIEW_HEIGHT) + 50 + 100;
+
+            let wx = camStreamWidth * face.width + 25;
+            let hx = camStreamHeight * face.height + 25 + 50;
+            let xx = face.x * camStreamWidth - 12;
+            let xy = face.y * camStreamHeight + 5 - 12 - 25;
+            
+                // draw the canvas over itself, cropping to our required rect
+            ctx.drawImage(video,
+                xx, xy, wx, hx,
+                x, y, w, h 
+            );
+
+            // ctx.filter = 'none';
+            ctx.strokeStyle="#FF0000";
+            ctx.strokeRect(face.x * VIEW_WIDTH, face.y * VIEW_HEIGHT + 10, face.width * VIEW_WIDTH, face.height * VIEW_HEIGHT);
+
+
+        }
+    });
+
+
+    webcamMgr.startCamera();
+
+</script>
+</body>
+</html>
